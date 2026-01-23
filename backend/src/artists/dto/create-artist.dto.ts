@@ -1,62 +1,39 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsUrl, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 
 export class CreateArtistDto {
-  @ApiProperty({
-    description: 'Artist name',
-    example: 'John Doe',
-    maxLength: 255,
-  })
   @IsString()
-  @MaxLength(255)
-  name: string;
+  @IsNotEmpty()
+  artistName: string;
 
-  @ApiPropertyOptional({
-    description: 'Artist email',
-    example: 'john@example.com',
-  })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsString()
+  @IsNotEmpty()
+  genre: string;
 
-  @ApiPropertyOptional({
-    description: 'Artist biography',
-    example: 'A talented musician making waves in the industry.',
-  })
+  @IsString()
+  @IsNotEmpty()
+  bio: string;
+
   @IsOptional()
   @IsString()
-  bio?: string;
+  profileImage?: string;
 
-  @ApiPropertyOptional({
-    description: 'Profile image URL',
-    example: 'https://example.com/image.jpg',
-  })
-  @IsOptional()
-  @IsUrl()
-  imageUrl?: string;
-
-  @ApiPropertyOptional({
-    description: 'Artist website',
-    example: 'https://johndoe.com',
-  })
-  @IsOptional()
-  @IsUrl()
-  website?: string;
-
-  @ApiPropertyOptional({
-    description: 'Social media links',
-    example: 'https://twitter.com/johndoe',
-  })
   @IsOptional()
   @IsString()
-  socialMedia?: string;
+  coverImage?: string;
 
-  @ApiPropertyOptional({
-    description: 'Whether the artist is active',
-    example: true,
-    default: true,
+  @IsString()
+  @Matches(/^G[A-Z0-9]{55}$/, {
+    message: 'Invalid Stellar public key',
   })
+  walletAddress: string;
+
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  emailNotifications?: boolean;
 }

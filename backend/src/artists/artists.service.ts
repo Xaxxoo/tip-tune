@@ -1,100 +1,61 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Artist } from './entities/artist.entity';
 import { CreateArtistDto } from './dto/create-artist.dto';
+import { UpdateArtistDto } from './dto/update-artist.dto';
 
 @Injectable()
 export class ArtistsService {
-  private readonly logger = new Logger(ArtistsService.name);
-
   constructor(
     @InjectRepository(Artist)
-    private artistsRepository: Repository<Artist>,
+    private readonly artistRepo: Repository<Artist>,
   ) {}
 
-  async create(createArtistDto: CreateArtistDto): Promise<Artist> {
-    try {
-      const artist = this.artistsRepository.create(createArtistDto);
-      const savedArtist = await this.artistsRepository.save(artist);
-      this.logger.log(`Artist created successfully: ${savedArtist.id}`);
-      return savedArtist;
-    } catch (error) {
-      this.logger.error(`Failed to create artist: ${error.message}`);
-      throw error;
+  async create(userId: string, dto: CreateArtistDto): Promise<Artist> {
+    const existing = await this.artistRepo.findOne({ where: { userId } });
+
+    if (existing) {
+      throw new BadRequestException('Artist profile already exists');
     }
+
+    const artist = this.artistRepo.create({
+      ...dto,
+      userId,
+    });
+
+    return this.artistRepo.save(artist);
   }
 
-  async findAll(): Promise<Artist[]> {
-    return this.artistsRepository.find({
-      order: { createdAt: 'DESC' },
-    });
+  findAll(): Promise<Artist[]> {
+    return this.artistRepo.find();
   }
 
-  async findActive(): Promise<Artist[]> {
-    return this.artistsRepository.find({
-      where: { isActive: true },
-      order: { name: 'ASC' },
-    });
-  }
+  async findByUser(userId: string): Promise<Artist> {
+    const artist = await this.artistRepo.findOne({ where: { userId } });
 
-  async findOne(id: string): Promise<Artist> {
-    const artist = await this.artistsRepository.findOne({ 
-      where: { id },
-      relations: ['tracks'],
-    });
-    
     if (!artist) {
-      throw new NotFoundException(`Artist with ID ${id} not found`);
+      throw new NotFoundException('Artist profile not found');
     }
-    
+
     return artist;
   }
 
-  async update(id: string, updateArtistDto: Partial<CreateArtistDto>): Promise<Artist> {
-    const artist = await this.findOne(id);
-    
-    Object.assign(artist, updateArtistDto);
-    
-    const updatedArtist = await this.artistsRepository.save(artist);
-    this.logger.log(`Artist updated successfully: ${id}`);
-    
-    return updatedArtist;
+  async update(
+    userId: string,
+    dto: UpdateArtistDto,
+  ): Promise<Artist> {
+    const artist = await this.findByUser(userId);
+    Object.assign(artist, dto);
+    return this.artistRepo.save(artist);
   }
 
-  async remove(id: string): Promise<void> {
-    const artist = await this.findOne(id);
-    
-    await this.artistsRepository.remove(artist);
-    this.logger.log(`Artist deleted successfully: ${id}`);
-  }
-
-  async search(query: string): Promise<Artist[]> {
-    return this.artistsRepository
-      .createQueryBuilder('artist')
-      .where('artist.name ILIKE :query', { query: `%${query}%` })
-      .orWhere('artist.bio ILIKE :query', { query: `%${query}%` })
-      .orderBy('artist.name', 'ASC')
-      .getMany();
-  }
-
-  async incrementPlayCount(id: string): Promise<Artist> {
-    const artist = await this.findOne(id);
-    
-    artist.totalPlays += 1;
-    
-    const updatedArtist = await this.artistsRepository.save(artist);
-    
-    return updatedArtist;
-  }
-
-  async addTips(id: string, amount: number): Promise<Artist> {
-    const artist = await this.findOne(id);
-    
-    artist.totalTips += amount;
-    
-    const updatedArtist = await this.artistsRepository.save(artist);
-    
-    return updatedArtist;
+  async remove(userId: string): Promise<void> {
+    const artist = await this.findByUser(userId);
+    await this.artistRepo.remove(artist);
   }
 }

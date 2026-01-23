@@ -1,57 +1,53 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { Track } from '../../tracks/entities/track.entity';
-import { Tip } from '../../tips/entities/tip.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('artists')
 export class Artist {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 255 })
-  name: string;
+  @OneToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
-  @Column({ length: 255, nullable: true })
-  email: string;
+  @Column({ type: 'uuid', unique: true })
+  userId: string;
 
-  @Column({ length: 500, nullable: true })
+  @Column()
+  artistName: string;
+
+  @Column()
+  genre: string;
+
+  @Column({ type: 'text' })
   bio: string;
 
-  @Column({ length: 500, nullable: true })
-  imageUrl: string;
+  @Column({ nullable: true })
+  profileImage: string;
 
-  @Column({ length: 255, nullable: true })
-  website: string;
+  @Column({ nullable: true })
+  coverImage: string;
 
-  @Column({ length: 255, nullable: true })
-  socialMedia: string;
+  @Column()
+  walletAddress: string; // Stellar public key
 
-  @Column({ length: 56, nullable: true })
-  stellarAddress?: string;
+  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 })
+  totalTipsReceived: string;
 
   @Column({ default: true })
-  isActive: boolean;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  totalTips: number;
-
-  @Column({ type: 'int', default: 0 })
-  totalPlays: number;
-
-  @Column({ type: 'int', default: 0 })
-  followerCount: number;
-
-  @Column({ type: 'int', default: 0 })
-  tipCount: number;
+  emailNotifications: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @OneToMany(() => Track, track => track.artist)
-  tracks: Track[];
-
-  @OneToMany(() => Tip, tip => tip.artist)
-  tips: Tip[];
 }

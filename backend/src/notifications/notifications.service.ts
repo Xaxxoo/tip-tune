@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { NotificationsGateway } from './notifications.gateway';
-import { Notification, NotificationType } from './notification.entity';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { NotificationsGateway } from "./notifications.gateway";
+import { Notification, NotificationType } from "./notification.entity";
 
 @Injectable()
 export class NotificationsService {
@@ -10,10 +10,10 @@ export class NotificationsService {
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
     private readonly notificationsGateway: NotificationsGateway,
-  ) { }
+  ) {}
 
   async notifyArtistOfTip(artistId: string, tip: any) {
-    const title = 'New Tip Received!';
+    const title = "New Tip Received!";
     const message = `You received a tip of ${tip.amount} XLM!`;
     const data = {
       tipId: tip.id,
@@ -31,18 +31,19 @@ export class NotificationsService {
       data,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     // Emit via WebSocket
     this.notificationsGateway.sendNotificationToArtist(artistId, {
       ...savedNotification,
-      type: 'TIP_RECEIVED', // Ensure frontend gets the string it expects if consistent with enum
+      type: "TIP_RECEIVED", // Ensure frontend gets the string it expects if consistent with enum
     });
   }
 
   async notifyUserOfBadge(userId: string, userBadge: any) {
-    const title = 'Achievement Unlocked!';
-    const message = `You've earned a new badge: ${userBadge.badge?.name || 'Badge'}`;
+    const title = "Achievement Unlocked!";
+    const message = `You've earned a new badge: ${userBadge.badge?.name || "Badge"}`;
     const data = {
       badgeId: userBadge.badgeId,
       userBadgeId: userBadge.id,
@@ -58,22 +59,106 @@ export class NotificationsService {
       data,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     // Emit via WebSocket
     this.notificationsGateway.sendNotificationToArtist(userId, {
       ...savedNotification,
-      type: 'BADGE_EARNED',
+      type: "BADGE_EARNED",
     });
   }
 
-  async getUserNotifications(userId: string, page: number = 1, limit: number = 20) {
-    const [notifications, total] = await this.notificationRepository.findAndCount({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+  async create(data: any) {
+    const notification = this.notificationRepository.create({
+      userId: data.userId,
+      type: data.type || NotificationType.GENERAL,
+      title: data.title,
+      message: data.message,
+      data: data.metadata,
     });
+
+    const savedNotification =
+      await this.notificationRepository.save(notification);
+
+    // Emit via WebSocket if gateway exists
+    if (this.notificationsGateway) {
+      this.notificationsGateway.sendNotificationToArtist(
+        data.userId,
+        savedNotification,
+      );
+    }
+
+    return savedNotification;
+  }
+
+  async sendCollaborationInvite(data: any) {
+    const notification = this.notificationRepository.create({
+      userId: data.artistId,
+      type: NotificationType.COLLABORATION_INVITE,
+      title: "New Collaboration Invite",
+      message: `${data.invitedBy} invited you to collaborate on "${data.trackTitle}"`,
+      data: {
+        trackId: data.trackId,
+        role: data.role,
+        splitPercentage: data.splitPercentage,
+        message: data.message,
+      },
+    });
+
+    const savedNotification =
+      await this.notificationRepository.save(notification);
+
+    // Emit via WebSocket
+    if (this.notificationsGateway) {
+      this.notificationsGateway.sendNotificationToArtist(
+        data.artistId,
+        savedNotification,
+      );
+    }
+
+    return savedNotification;
+  }
+
+  async sendCollaborationResponse(data: any) {
+    const notification = this.notificationRepository.create({
+      userId: data.artistId,
+      type: NotificationType.COLLABORATION_RESPONSE,
+      title: `Collaboration ${data.status === "approved" ? "Accepted" : "Declined"}`,
+      message: `${data.collaboratorName} ${data.status === "approved" ? "accepted" : "declined"} collaboration on "${data.trackTitle}"`,
+      data: {
+        trackId: data.trackId,
+        status: data.status,
+        reason: data.reason,
+      },
+    });
+
+    const savedNotification =
+      await this.notificationRepository.save(notification);
+
+    // Emit via WebSocket
+    if (this.notificationsGateway) {
+      this.notificationsGateway.sendNotificationToArtist(
+        data.artistId,
+        savedNotification,
+      );
+    }
+
+    return savedNotification;
+  }
+
+  async getUserNotifications(
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    const [notifications, total] =
+      await this.notificationRepository.findAndCount({
+        where: { userId },
+        order: { createdAt: "DESC" },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
 
     return {
       data: notifications,
@@ -99,7 +184,7 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException("Notification not found");
     }
 
     notification.isRead = true;

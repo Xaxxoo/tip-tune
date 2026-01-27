@@ -20,6 +20,7 @@ import { GamificationModule } from './gamification/gamification.module';
 import { ScheduledReleasesModule } from './scheduled-releases/scheduled-releases.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { ReportsModule } from './reports/reports.module';
+import { GoalsModule } from './goals/goals.module';
 
 @Module({
   imports: [
@@ -52,11 +53,10 @@ import { ReportsModule } from './reports/reports.module';
     GenresModule,
     ActivitiesModule,
     FollowsModule,
-    GamificationModule,
-    EventEmitterModule.forRoot(),
     ScheduledReleasesModule,
     LeaderboardsModule,
     ReportsModule,
+    GoalsModule,
   ],
   controllers: [],
   providers: [],

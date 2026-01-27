@@ -3,19 +3,19 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { ScheduledRelease } from './scheduled-release.entity';
-import { PreSave } from './presave.entity';
-import { Track } from '../tracks/track.entity';
-import { NotificationsService } from '../notifications/notifications.service';
-import { FollowsService } from '../follows/follows.service';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, LessThanOrEqual } from "typeorm";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { ScheduledRelease } from "./entities/scheduled-release.entity";
+import { PreSave } from "./entities/presave.entity";
+import { Track } from "../tracks/entities/track.entity";
+import { NotificationsService } from "../notifications/notifications.service";
+import { FollowsService } from "../follows/follows.service";
 
 @Injectable()
-export class ScheduledReleasesService {
-  private readonly logger = new Logger(ScheduledReleasesService.name);
+export class PreSavesService {
+  private readonly logger = new Logger(PreSavesService.name);
 
   constructor(
     @InjectRepository(ScheduledRelease)
@@ -35,21 +35,20 @@ export class ScheduledReleasesService {
   ): Promise<ScheduledRelease> {
     const track = await this.trackRepository.findOne({
       where: { id: trackId },
-      relations: ['artist'],
+      relations: ["artist"],
     });
 
     if (!track) {
-      throw new NotFoundException('Track not found');
+      throw new NotFoundException("Track not found");
     }
 
     if (new Date(releaseDate) <= new Date()) {
-      throw new BadRequestException('Release date must be in the future');
+      throw new BadRequestException("Release date must be in the future");
     }
 
     // Mark track as scheduled (not publicly visible yet)
     await this.trackRepository.update(trackId, {
       isPublic: false,
-      status: 'scheduled',
     });
 
     const scheduledRelease = this.scheduledReleaseRepository.create({
@@ -64,11 +63,11 @@ export class ScheduledReleasesService {
   async getScheduledRelease(id: string): Promise<ScheduledRelease> {
     const release = await this.scheduledReleaseRepository.findOne({
       where: { id },
-      relations: ['track', 'track.artist'],
+      relations: ["track", "track.artist"],
     });
 
     if (!release) {
-      throw new NotFoundException('Scheduled release not found');
+      throw new NotFoundException("Scheduled release not found");
     }
 
     return release;
@@ -79,7 +78,7 @@ export class ScheduledReleasesService {
   ): Promise<ScheduledRelease | null> {
     return this.scheduledReleaseRepository.findOne({
       where: { trackId, isReleased: false },
-      relations: ['track', 'track.artist'],
+      relations: ["track", "track.artist"],
     });
   }
 
@@ -91,11 +90,11 @@ export class ScheduledReleasesService {
     const release = await this.getScheduledRelease(id);
 
     if (release.isReleased) {
-      throw new BadRequestException('Cannot update already released track');
+      throw new BadRequestException("Cannot update already released track");
     }
 
     if (releaseDate && new Date(releaseDate) <= new Date()) {
-      throw new BadRequestException('Release date must be in the future');
+      throw new BadRequestException("Release date must be in the future");
     }
 
     if (releaseDate) {
@@ -113,7 +112,7 @@ export class ScheduledReleasesService {
     const release = await this.getScheduledRelease(id);
 
     if (release.isReleased) {
-      throw new BadRequestException('Cannot cancel already released track');
+      throw new BadRequestException("Cannot cancel already released track");
     }
 
     // Delete all pre-saves
@@ -126,8 +125,8 @@ export class ScheduledReleasesService {
   async getUpcomingReleases(limit: number = 20): Promise<ScheduledRelease[]> {
     return this.scheduledReleaseRepository.find({
       where: { isReleased: false },
-      relations: ['track', 'track.artist'],
-      order: { releaseDate: 'ASC' },
+      relations: ["track", "track.artist"],
+      order: { releaseDate: "ASC" },
       take: limit,
     });
   }
@@ -136,30 +135,30 @@ export class ScheduledReleasesService {
     artistId: string,
   ): Promise<ScheduledRelease[]> {
     return this.scheduledReleaseRepository
-      .createQueryBuilder('sr')
-      .leftJoinAndSelect('sr.track', 'track')
-      .leftJoinAndSelect('track.artist', 'artist')
-      .where('artist.id = :artistId', { artistId })
-      .andWhere('sr.isReleased = :isReleased', { isReleased: false })
-      .orderBy('sr.releaseDate', 'ASC')
+      .createQueryBuilder("sr")
+      .leftJoinAndSelect("sr.track", "track")
+      .leftJoinAndSelect("track.artist", "artist")
+      .where("artist.id = :artistId", { artistId })
+      .andWhere("sr.isReleased = :isReleased", { isReleased: false })
+      .orderBy("sr.releaseDate", "ASC")
       .getMany();
   }
 
   // Cron job runs every minute to check for releases
   @Cron(CronExpression.EVERY_MINUTE)
   async handleScheduledReleases(): Promise<void> {
-    this.logger.log('Checking for scheduled releases...');
+    this.logger.log("Checking for scheduled releases...");
 
     const releasesToPublish = await this.scheduledReleaseRepository.find({
       where: {
         releaseDate: LessThanOrEqual(new Date()),
         isReleased: false,
       },
-      relations: ['track', 'track.artist'],
+      relations: ["track", "track.artist"],
     });
 
     if (releasesToPublish.length === 0) {
-      this.logger.log('No releases to publish');
+      this.logger.log("No releases to publish");
       return;
     }
 
@@ -180,8 +179,6 @@ export class ScheduledReleasesService {
     // Mark track as public
     await this.trackRepository.update(release.trackId, {
       isPublic: true,
-      status: 'released',
-      releasedAt: new Date(),
     });
 
     // Mark release as completed
@@ -204,16 +201,16 @@ export class ScheduledReleasesService {
   private async notifyPreSavers(release: ScheduledRelease): Promise<void> {
     const preSaves = await this.preSaveRepository.find({
       where: { trackId: release.trackId, notified: false },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     for (const preSave of preSaves) {
       try {
         await this.notificationsService.create({
           userId: preSave.userId,
-          type: 'track_released',
-          title: 'Track Released!',
-          message: `${release.track.title} by ${release.track.artist.name} is now available!`,
+          type: "track_released",
+          title: "Track Released!",
+          message: `${release.track.title} by ${release.track.artist.artistName} is now available!`,
           metadata: {
             trackId: release.trackId,
             artistId: release.track.artist.id,
@@ -231,26 +228,29 @@ export class ScheduledReleasesService {
   }
 
   private async notifyFollowers(release: ScheduledRelease): Promise<void> {
-    const followers = await this.followsService.getArtistFollowers(
+    const result = await this.followsService.getFollowers(
       release.track.artist.id,
+      { page: 1, limit: 100 },
     );
+
+    const followers = result.data;
 
     for (const follower of followers) {
       try {
         // Skip if user already pre-saved (they'll get the pre-save notification)
         const hasPreSaved = await this.preSaveRepository.findOne({
           where: {
-            userId: follower.followerId,
+            userId: follower.id,
             trackId: release.trackId,
           },
         });
 
         if (!hasPreSaved) {
           await this.notificationsService.create({
-            userId: follower.followerId,
-            type: 'new_release',
-            title: 'New Release',
-            message: `${release.track.artist.name} just released ${release.track.title}!`,
+            userId: follower.id,
+            type: "new_release",
+            title: "New Release",
+            message: `${release.track.artist.artistName} just released ${release.track.title}!`,
             metadata: {
               trackId: release.trackId,
               artistId: release.track.artist.id,
@@ -259,7 +259,7 @@ export class ScheduledReleasesService {
         }
       } catch (error) {
         this.logger.error(
-          `Failed to notify follower ${follower.followerId}: ${error.message}`,
+          `Failed to notify follower ${follower.id}: ${error.message}`,
         );
       }
     }
@@ -269,7 +269,7 @@ export class ScheduledReleasesService {
     const release = await this.getScheduledReleaseByTrackId(trackId);
 
     if (!release) {
-      throw new NotFoundException('No scheduled release found for this track');
+      throw new NotFoundException("No scheduled release found for this track");
     }
 
     const totalPreSaves = await this.preSaveRepository.count({
@@ -303,5 +303,53 @@ export class ScheduledReleasesService {
               (1000 * 60 * 60 * 24),
           ),
     };
+  }
+
+  // Pre-save related methods
+  async createPreSave(userId: string, trackId: string): Promise<PreSave> {
+    const track = await this.trackRepository.findOne({
+      where: { id: trackId },
+    });
+    if (!track) {
+      throw new NotFoundException("Track not found");
+    }
+
+    const existing = await this.preSaveRepository.findOne({
+      where: { userId, trackId },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const preSave = this.preSaveRepository.create({ userId, trackId });
+    return this.preSaveRepository.save(preSave);
+  }
+
+  async removePreSave(userId: string, trackId: string): Promise<void> {
+    await this.preSaveRepository.delete({ userId, trackId });
+  }
+
+  async getTrackPreSaves(trackId: string): Promise<PreSave[]> {
+    return this.preSaveRepository.find({
+      where: { trackId },
+      relations: ["user"],
+      order: { createdAt: "DESC" },
+    });
+  }
+
+  async getUserPreSaves(userId: string): Promise<PreSave[]> {
+    return this.preSaveRepository.find({
+      where: { userId },
+      relations: ["track"],
+      order: { createdAt: "DESC" },
+    });
+  }
+
+  async hasPreSaved(userId: string, trackId: string): Promise<boolean> {
+    const count = await this.preSaveRepository.count({
+      where: { userId, trackId },
+    });
+    return count > 0;
   }
 }

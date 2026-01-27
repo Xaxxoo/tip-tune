@@ -16,6 +16,7 @@ import { StellarService } from '../stellar/stellar.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivitiesService } from '../activities/activities.service';
+import { GoalsService } from '../goals/goals.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TipVerifiedEvent } from './events/tip-verified.event';
 
@@ -31,11 +32,12 @@ export class TipsService {
     private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => ActivitiesService))
     private readonly activitiesService: ActivitiesService,
+    private readonly goalsService: GoalsService,
     private readonly eventEmitter: EventEmitter2,
   ) { }
 
   async create(userId: string, createTipDto: CreateTipDto): Promise<Tip> {
-    const { artistId, trackId, stellarTxHash, message } = createTipDto;
+    const { artistId, trackId, goalId, stellarTxHash, message } = createTipDto;
 
     // 1. Check if tip already exists
     const existingTip = await this.tipRepository.findOne({
@@ -104,6 +106,7 @@ export class TipsService {
       senderAddress,
       receiverAddress,
       trackId,
+      goalId,
       amount: parseFloat(amount),
       stellarTxHash,
       message,
@@ -111,6 +114,16 @@ export class TipsService {
     });
 
     const savedTip = await this.tipRepository.save(tip);
+
+    // Update Goal Progress if goalId is present
+    if (goalId) {
+      try {
+        await this.goalsService.updateProgress(goalId, savedTip.amount);
+      } catch (error) {
+        this.logger.error(`Failed to update goal progress: ${error.message}`);
+        // Don't fail the tip creation, but log the error
+      }
+    }
 
     // Emit WebSocket notification
     this.notificationsService.notifyArtistOfTip(artistId, savedTip);
@@ -122,6 +135,7 @@ export class TipsService {
         amount: savedTip.amount,
         toArtistId: artistId,
         trackId: trackId,
+        goalId: goalId,
         message: message,
       });
 
@@ -130,6 +144,7 @@ export class TipsService {
         amount: savedTip.amount,
         fromUserId: userId,
         trackId: trackId,
+        goalId: goalId,
         message: message,
       });
     } catch (error) {

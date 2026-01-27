@@ -1,7 +1,4 @@
-import { Type } from "class-transformer";
 import {
-  ValidateNested,
-  ArrayMinSize,
   IsUUID,
   IsEnum,
   IsNumber,
@@ -12,7 +9,7 @@ import {
 } from "class-validator";
 import { CollaborationRole } from "../entities/collaboration.entity";
 
-class CollaboratorInvite {
+export class InviteCollaboratorDto {
   @IsUUID()
   artistId: string;
 
@@ -27,14 +24,4 @@ class CollaboratorInvite {
   @IsOptional()
   @IsString()
   invitationMessage?: string;
-}
-
-export class InviteCollaboratorsDto {
-  @IsUUID()
-  trackId: string;
-
-  @ValidateNested({ each: true })
-  @Type(() => CollaboratorInvite)
-  @ArrayMinSize(1)
-  collaborators: CollaboratorInvite[];
 }

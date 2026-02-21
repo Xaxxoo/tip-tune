@@ -59,6 +59,16 @@ export interface Tip {
   trackId?: string; // UUID string matching Track.id
 }
 
+/** Extended tip for history page: amount in asset, USD, track, Stellar link */
+export interface TipHistoryItem extends Tip {
+  stellarTxHash?: string;
+  assetCode?: string;
+  usdAmount?: number;
+  trackTitle?: string;
+  /** For "Sent" tab: artist name; for "Received" tab: tipper is already shown */
+  artistName?: string;
+}
+
 // User types
 export interface User {
   id: string;

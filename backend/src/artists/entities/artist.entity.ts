@@ -58,6 +58,9 @@ export class Artist {
   @Column({ default: true })
   emailNotifications: boolean;
 
+  @Column({ default: false, name: 'is_verified' })
+  isVerified: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

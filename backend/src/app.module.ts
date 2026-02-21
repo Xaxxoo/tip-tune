@@ -23,6 +23,9 @@ import { ReportsModule } from './reports/reports.module';
 import { GoalsModule } from './goals/goals.module';
 import { CommentsModule } from './comments/comments.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
+import { VerificationModule } from './verification/verification.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+
 
 @Module({
   imports: [
@@ -63,6 +66,8 @@ import { CollaborationModule } from './collaboration/collaboration.module';
     GamificationModule,
     CommentsModule,
     CollaborationModule,
+    VerificationModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [],

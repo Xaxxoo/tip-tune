@@ -22,6 +22,7 @@ import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { ReportsModule } from './reports/reports.module';
 import { GoalsModule } from './goals/goals.module';
 import { VerificationModule } from './verification/verification.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { VerificationModule } from './verification/verification.module';
     ReportsModule,
     GoalsModule,
     VerificationModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [],
